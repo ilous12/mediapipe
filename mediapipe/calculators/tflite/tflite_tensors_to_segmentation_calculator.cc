@@ -346,13 +346,7 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
     cv::Mat temp_mask_mat = formats::MatView(&input_mask);
     if (temp_mask_mat.channels() != 4) {
       cv::Mat converted_mat;
-      if (temp_mask_mat.channels() == 1) {
-          float sigma_color = 10;
-          float sigma_space = 100;
-          cv::bilateralFilter(temp_mask_mat, converted_mat, /*d=*/sigma_space * 2.0,
-              sigma_color, sigma_space);
-      }
-      cv::cvtColor(converted_mat, converted_mat,
+      cv::cvtColor(temp_mask_mat, converted_mat,
                    temp_mask_mat.channels() == 1 ? cv::COLOR_GRAY2RGBA
                                                  : cv::COLOR_RGB2RGBA);
       temp_mask_mat = converted_mat.clone();
@@ -369,11 +363,21 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
                      CV_MAKETYPE(CV_32F, tensor_channels_), const_cast<float*>(raw_input_data));
 
   LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "]";
+  if (tensor_mat.channels() == 1) {
+      LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "] tensor_mat.channels() == 1";
+      float sigma_color = 0.5;
+      float sigma_space = 0.5;
+      cv::Mat bilateral_mat;
+      cv::bilateralFilter(tensor_mat, bilateral_mat, /*d=*/sigma_space,
+          sigma_color, sigma_space);
+      tensor_mat = bilateral_mat;
+  }
 
   // Process mask tensor.
   // Run softmax over tensor output and blend with previous mask.
   const int output_layer_index = options_.output_layer_index();
   const float combine_with_prev_ratio = options_.combine_with_previous_ratio();
+  float min_range = 0.1, max_range = 1;
   for (int i = 0; i < tensor_height_; ++i) {
     for (int j = 0; j < tensor_width_; ++j) {
       // Only two channel input tensor is supported.
@@ -389,6 +393,16 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
       }
       else if(tensor_channels_ == 1) {
           new_mask_value = tensor_mat.at<float>(i, j);
+
+          if (new_mask_value <= min_range) {
+              new_mask_value = 0;
+          }
+          else if (new_mask_value >= max_range) {
+              new_mask_value = 1;
+          }
+          else {
+              new_mask_value = (new_mask_value - min_range) / (max_range - min_range);
+          }
       }
       // Combine previous value with current using uncertainty^2 as mixing coeff
       if (has_prev_mask) {
@@ -409,12 +423,26 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
         new_mask_value = mixed_mask_value * combine_with_prev_ratio +
                          (1.0f - combine_with_prev_ratio) * new_mask_value;
       }
+
+      if (new_mask_value <= min_range) {
+          new_mask_value = 0;
+      }
+      else if (new_mask_value >= max_range) {
+          new_mask_value = 1;
+      }
+      else {
+          new_mask_value = (new_mask_value - min_range) / (max_range - min_range);
+      }
+
       const uchar mask_value = static_cast<uchar>(new_mask_value * 255);
+
       // Set both R and A channels for convenience.
       const cv::Vec4b out_value = {mask_value, 0, 0, mask_value};
       small_mask_mat.at<cv::Vec4b>(i, j) = out_value;
     }
   }
+
+  LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "] range min " << min_range << ", max " << max_range;
 
   if (options_.flip_vertically()) cv::flip(small_mask_mat, small_mask_mat, 0);
 
@@ -422,6 +450,8 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
   cv::Mat large_mask_mat;
   cv::resize(small_mask_mat, large_mask_mat,
              cv::Size(output_width, output_height));
+
+  cv::GaussianBlur(large_mask_mat, large_mask_mat, cv::Size(1, 1), 20);
 
   // Send out image as CPU packet.
   std::unique_ptr<ImageFrame> output_mask = absl::make_unique<ImageFrame>(

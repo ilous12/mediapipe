@@ -54,9 +54,9 @@ struct MPPGInterpreter {
 
 MPPGInterpreter* MPPGInterpreterCreate(std::string &calculator_graph_config_contents, std::string &resource_root_dir) {
       google::InitGoogleLogging("MMPG");
-      FLAGS_stderrthreshold = 0;
-      FLAGS_minloglevel = 0;
-      FLAGS_v = 4;
+      //FLAGS_stderrthreshold = 0;
+      //FLAGS_minloglevel = 0;
+      //FLAGS_v = 4;
     MPPGInterpreter* interpreter = new MPPGInterpreter;
     absl::SetFlag(&FLAGS_resource_root_dir, resource_root_dir);
 
