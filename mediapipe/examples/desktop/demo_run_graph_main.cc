@@ -31,6 +31,8 @@ constexpr char kInputStream[] = "input_video";
 constexpr char kOutputStream[] = "output_video";
 constexpr char kWindowName[] = "MediaPipe";
 
+ABSL_DECLARE_FLAG(std::string, resource_root_dir);
+
 ABSL_FLAG(std::string, calculator_graph_config_file, "",
           "Name of file containing text format CalculatorGraphConfig proto.");
 ABSL_FLAG(std::string, input_video_path, "",
@@ -41,6 +43,8 @@ ABSL_FLAG(std::string, output_video_path, "",
           "If not provided, show result in a window.");
 
 absl::Status RunMPPGraph() {
+    absl::SetFlag(&FLAGS_resource_root_dir, "C:\\Users\\ilous12\\AppData\\Local\\MeetUs\\bin");
+
   std::string calculator_graph_config_contents;
   MP_RETURN_IF_ERROR(mediapipe::file::GetContents(
       absl::GetFlag(FLAGS_calculator_graph_config_file),
@@ -61,7 +65,8 @@ absl::Status RunMPPGraph() {
   if (load_video) {
     capture.open(absl::GetFlag(FLAGS_input_video_path));
   } else {
-    capture.open(0);
+    capture.open(0, cv::CAP_MSMF);
+    //capture.open(0);
   }
   RET_CHECK(capture.isOpened());
 
@@ -70,8 +75,8 @@ absl::Status RunMPPGraph() {
   if (!save_video) {
     cv::namedWindow(kWindowName, /*flags=WINDOW_AUTOSIZE*/ 1);
 #if (CV_MAJOR_VERSION >= 3) && (CV_MINOR_VERSION >= 2)
-    capture.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-    capture.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+    capture.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
+    capture.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
     capture.set(cv::CAP_PROP_FPS, 30);
 #endif
   }

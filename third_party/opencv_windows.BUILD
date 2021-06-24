@@ -5,7 +5,7 @@ licenses(["notice"])  # BSD license
 
 exports_files(["LICENSE"])
 
-OPENCV_VERSION = "3410"  # 3.4.10
+OPENCV_VERSION = "3414"  # 3.4.14
 
 config_setting(
     name = "opt_build",
@@ -28,6 +28,7 @@ cc_library(
             "x64/vc15/bin/opencv_world" + OPENCV_VERSION + ".dll",
         ],
         ":dbg_build": [
+            "x64/vc15/lib/opencv_world" + OPENCV_VERSION + ".lib",
             "x64/vc15/lib/opencv_world" + OPENCV_VERSION + "d.lib",
             "x64/vc15/bin/opencv_world" + OPENCV_VERSION + "d.dll",
         ],

@@ -41,7 +41,7 @@ cc_library(
     name = "selfie_segmentation_cpu_deps",
     deps = [
         "//mediapipe/calculators/core:flow_limiter_calculator",
-        "//mediapipe/calculators/image:recolor_calculator",
+        "//mediapipe/calculators/image:background_blend_calculator",
         "//mediapipe/modules/selfie_segmentation:selfie_segmentation_cpu",
     ],
 )

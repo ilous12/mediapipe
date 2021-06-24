@@ -18,13 +18,13 @@ node {
   output_side_packet: "PACKET:model_path"
   options: {
     [mediapipe.SwitchContainerOptions.ext] {
-      select: 0
+      select: 1
       contained_node: {
         calculator: "ConstantSidePacketCalculator"
         options: {
           [mediapipe.ConstantSidePacketCalculatorOptions.ext]: {
             packet {
-              string_value: "mediapipe/modules/selfie_segmentation/selfie_segmentation.tflite"
+              string_value: "selfie_segmentation.tflite"
             }
           }
         }
@@ -34,7 +34,7 @@ node {
         options: {
           [mediapipe.ConstantSidePacketCalculatorOptions.ext]: {
             packet {
-              string_value: "mediapipe/modules/selfie_segmentation/selfie_segmentation_landscape.tflite"
+              string_value: "selfie_segmentation_landscape.tflite"
             }
           }
         }

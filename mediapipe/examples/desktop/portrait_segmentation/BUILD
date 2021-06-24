@@ -1,4 +1,4 @@
-# Copyright 2021 The MediaPipe Authors.
+# Copyright 2019 The MediaPipe Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,25 +17,8 @@ licenses(["notice"])
 package(default_visibility = ["//mediapipe/examples:__subpackages__"])
 
 cc_binary(
-    name = "selfie_segmentation_cpu",
-    deps = [
-        "//mediapipe/examples/desktop:demo_run_graph_main",
-        "//mediapipe/graphs/selfie_segmentation:selfie_segmentation_cpu_deps",
-    ],
-)
-
-cc_binary(
     name = "mpp_graph_cpu",
     deps = [
         "//mediapipe/examples/desktop:mpp_graph_main",
-    ],
-)
-
-# Linux only
-cc_binary(
-    name = "selfie_segmentation_gpu",
-    deps = [
-        "//mediapipe/examples/desktop:demo_run_graph_main_gpu",
-        "//mediapipe/graphs/selfie_segmentation:selfie_segmentation_gpu_deps",
     ],
 )

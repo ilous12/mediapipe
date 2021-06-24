@@ -38,7 +38,7 @@ node {
   output_stream: "TENSORS:input_tensors"
   options: {
     [mediapipe.SwitchContainerOptions.ext] {
-      select: 0
+      select: 1
       contained_node: {
         calculator: "ImageToTensorCalculator"
         options: {

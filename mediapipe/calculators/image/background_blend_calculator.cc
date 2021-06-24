@@ -14,15 +14,18 @@
 
 #include <vector>
 
-#include "mediapipe/calculators/image/recolor_calculator.pb.h"
+#include "mediapipe/calculators/image/background_blend_calculator.pb.h"
 #include "mediapipe/framework/calculator_framework.h"
 #include "mediapipe/framework/formats/image_frame.h"
 #include "mediapipe/framework/formats/image_frame_opencv.h"
 #include "mediapipe/framework/port/opencv_core_inc.h"
 #include "mediapipe/framework/port/opencv_imgproc_inc.h"
+#include "mediapipe/framework/port/opencv_highgui_inc.h"
+#include "mediapipe/framework/port/opencv_video_inc.h"
 #include "mediapipe/framework/port/ret_check.h"
 #include "mediapipe/framework/port/status.h"
 #include "mediapipe/util/color.pb.h"
+#include "mediapipe/util/resource_util.h"
 
 #if !MEDIAPIPE_DISABLE_GPU
 #include "mediapipe/gpu/gl_calculator_helper.h"
@@ -80,12 +83,12 @@ namespace mediapipe {
 //
 // Usage example:
 //  node {
-//    calculator: "RecolorCalculator"
+//    calculator: "BackgroundBlendCalculator"
 //    input_stream: "IMAGE_GPU:input_image"
 //    input_stream: "MASK_GPU:input_mask"
 //    output_stream: "IMAGE_GPU:output_image"
 //    node_options: {
-//      [mediapipe.RecolorCalculatorOptions] {
+//      [mediapipe.BackgroundBlendCalculatorOptions] {
 //        color { r: 0 g: 0 b: 255 }
 //        mask_channel: RED
 //      }
@@ -94,10 +97,10 @@ namespace mediapipe {
 //
 // Note: Cannot mix-match CPU & GPU inputs/outputs.
 //       CPU-in & CPU-out <or> GPU-in & GPU-out
-class RecolorCalculator : public CalculatorBase {
+class BackgroundBlendCalculator : public CalculatorBase {
  public:
-  RecolorCalculator() = default;
-  ~RecolorCalculator() override = default;
+  BackgroundBlendCalculator() = default;
+  ~BackgroundBlendCalculator() override = default;
 
   static absl::Status GetContract(CalculatorContract* cc);
 
@@ -114,7 +117,9 @@ class RecolorCalculator : public CalculatorBase {
 
   bool initialized_ = false;
   std::vector<uint8> color_;
-  mediapipe::RecolorCalculatorOptions::MaskChannel mask_channel_;
+  mediapipe::BackgroundBlendCalculatorOptions::MaskChannel mask_channel_;
+
+  cv::Mat background;
 
   bool use_gpu_ = false;
   bool invert_mask_ = false;
@@ -124,10 +129,10 @@ class RecolorCalculator : public CalculatorBase {
   GLuint program_ = 0;
 #endif  // !MEDIAPIPE_DISABLE_GPU
 };
-REGISTER_CALCULATOR(RecolorCalculator);
+REGISTER_CALCULATOR(BackgroundBlendCalculator);
 
 // static
-absl::Status RecolorCalculator::GetContract(CalculatorContract* cc) {
+absl::Status BackgroundBlendCalculator::GetContract(CalculatorContract* cc) {
   RET_CHECK(!cc->Inputs().GetTags().empty());
   RET_CHECK(!cc->Outputs().GetTags().empty());
 
@@ -179,7 +184,7 @@ absl::Status RecolorCalculator::GetContract(CalculatorContract* cc) {
   return absl::OkStatus();
 }
 
-absl::Status RecolorCalculator::Open(CalculatorContext* cc) {
+absl::Status BackgroundBlendCalculator::Open(CalculatorContext* cc) {
   cc->SetOffset(TimestampDiff(0));
 
   if (cc->Inputs().HasTag(kGpuBufferTag)) {
@@ -191,10 +196,17 @@ absl::Status RecolorCalculator::Open(CalculatorContext* cc) {
 
   MP_RETURN_IF_ERROR(LoadOptions(cc));
 
+  mediapipe::StatusOr<std::string> status = ::mediapipe::PathToResourceAsFile("test.png");
+  if (status.ok()) {
+      background = cv::imread(status.value(), 1);
+      cv::cvtColor(background, background, cv::COLOR_BGR2RGB);
+      cv::resize(background, background, cv::Size(1280, 720));
+  }
+
   return absl::OkStatus();
 }
 
-absl::Status RecolorCalculator::Process(CalculatorContext* cc) {
+absl::Status BackgroundBlendCalculator::Process(CalculatorContext* cc) {
   if (use_gpu_) {
 #if !MEDIAPIPE_DISABLE_GPU
     MP_RETURN_IF_ERROR(
@@ -213,7 +225,7 @@ absl::Status RecolorCalculator::Process(CalculatorContext* cc) {
   return absl::OkStatus();
 }
 
-absl::Status RecolorCalculator::Close(CalculatorContext* cc) {
+absl::Status BackgroundBlendCalculator::Close(CalculatorContext* cc) {
 #if !MEDIAPIPE_DISABLE_GPU
   gpu_helper_.RunInGlContext([this] {
     if (program_) glDeleteProgram(program_);
@@ -224,7 +236,7 @@ absl::Status RecolorCalculator::Close(CalculatorContext* cc) {
   return absl::OkStatus();
 }
 
-absl::Status RecolorCalculator::RenderCpu(CalculatorContext* cc) {
+absl::Status BackgroundBlendCalculator::RenderCpu(CalculatorContext* cc) {
   if (cc->Inputs().Tag(kMaskCpuTag).IsEmpty()) {
     cc->Outputs()
         .Tag(kImageFrameTag)
@@ -243,7 +255,7 @@ absl::Status RecolorCalculator::RenderCpu(CalculatorContext* cc) {
   if (mask_mat.channels() > 1) {
     std::vector<cv::Mat> channels;
     cv::split(mask_mat, channels);
-    if (mask_channel_ == mediapipe::RecolorCalculatorOptions_MaskChannel_ALPHA)
+    if (mask_channel_ == mediapipe::BackgroundBlendCalculatorOptions_MaskChannel_ALPHA)
       mask_mat = channels[3];
     else
       mask_mat = channels[0];
@@ -277,7 +289,7 @@ absl::Status RecolorCalculator::RenderCpu(CalculatorContext* cc) {
       for (int j = 0; j < output_mat.cols; ++j) {
         const float weight = mask_full.at<float>(i, j);
         output_mat.at<cv::Vec3b>(i, j) =
-            Blend(input_mat.at<cv::Vec3b>(i, j), recolor, weight, invert_mask,
+            Blend(input_mat.at<cv::Vec3b>(i, j), background.at<cv::Vec3b>(i, j), weight, invert_mask,
                   adjust_with_luminance);
       }
     }
@@ -286,7 +298,7 @@ absl::Status RecolorCalculator::RenderCpu(CalculatorContext* cc) {
       for (int j = 0; j < output_mat.cols; ++j) {
         const float weight = mask_full.at<uchar>(i, j) * (1.0 / 255.0);
         output_mat.at<cv::Vec3b>(i, j) =
-            Blend(input_mat.at<cv::Vec3b>(i, j), recolor, weight, invert_mask,
+            Blend(input_mat.at<cv::Vec3b>(i, j), background.at<cv::Vec3b>(i, j), weight, invert_mask,
                   adjust_with_luminance);
       }
     }
@@ -299,7 +311,7 @@ absl::Status RecolorCalculator::RenderCpu(CalculatorContext* cc) {
   return absl::OkStatus();
 }
 
-absl::Status RecolorCalculator::RenderGpu(CalculatorContext* cc) {
+absl::Status BackgroundBlendCalculator::RenderGpu(CalculatorContext* cc) {
   if (cc->Inputs().Tag(kMaskGpuTag).IsEmpty()) {
     cc->Outputs()
         .Tag(kGpuBufferTag)
@@ -350,7 +362,7 @@ absl::Status RecolorCalculator::RenderGpu(CalculatorContext* cc) {
   return absl::OkStatus();
 }
 
-void RecolorCalculator::GlRender() {
+void BackgroundBlendCalculator::GlRender() {
 #if !MEDIAPIPE_DISABLE_GPU
   static const GLfloat square_vertices[] = {
       -1.0f, -1.0f,  // bottom left
@@ -402,8 +414,8 @@ void RecolorCalculator::GlRender() {
 #endif  // !MEDIAPIPE_DISABLE_GPU
 }
 
-absl::Status RecolorCalculator::LoadOptions(CalculatorContext* cc) {
-  const auto& options = cc->Options<mediapipe::RecolorCalculatorOptions>();
+absl::Status BackgroundBlendCalculator::LoadOptions(CalculatorContext* cc) {
+  const auto& options = cc->Options<mediapipe::BackgroundBlendCalculatorOptions>();
 
   mask_channel_ = options.mask_channel();
 
@@ -419,7 +431,7 @@ absl::Status RecolorCalculator::LoadOptions(CalculatorContext* cc) {
   return absl::OkStatus();
 }
 
-absl::Status RecolorCalculator::InitGpu(CalculatorContext* cc) {
+absl::Status BackgroundBlendCalculator::InitGpu(CalculatorContext* cc) {
 #if !MEDIAPIPE_DISABLE_GPU
   const GLint attr_location[NUM_ATTRIBUTES] = {
       ATTRIB_VERTEX,
@@ -432,11 +444,11 @@ absl::Status RecolorCalculator::InitGpu(CalculatorContext* cc) {
 
   std::string mask_component;
   switch (mask_channel_) {
-    case mediapipe::RecolorCalculatorOptions_MaskChannel_UNKNOWN:
-    case mediapipe::RecolorCalculatorOptions_MaskChannel_RED:
+    case mediapipe::BackgroundBlendCalculatorOptions_MaskChannel_UNKNOWN:
+    case mediapipe::BackgroundBlendCalculatorOptions_MaskChannel_RED:
       mask_component = "r";
       break;
-    case mediapipe::RecolorCalculatorOptions_MaskChannel_ALPHA:
+    case mediapipe::BackgroundBlendCalculatorOptions_MaskChannel_ALPHA:
       mask_component = "a";
       break;
   }
