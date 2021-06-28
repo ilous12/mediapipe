@@ -37,6 +37,7 @@ namespace {
 enum { ATTRIB_VERTEX, ATTRIB_TEXTURE_POSITION, NUM_ATTRIBUTES };
 
 constexpr char kImageFrameTag[] = "IMAGE";
+constexpr char kBackgroundFrameTag[] = "SECOND";
 constexpr char kMaskCpuTag[] = "MASK";
 constexpr char kGpuBufferTag[] = "IMAGE_GPU";
 constexpr char kMaskGpuTag[] = "MASK_GPU";
@@ -119,8 +120,6 @@ class BackgroundBlendCalculator : public CalculatorBase {
   std::vector<uint8> color_;
   mediapipe::BackgroundBlendCalculatorOptions::MaskChannel mask_channel_;
 
-  cv::Mat background;
-
   bool use_gpu_ = false;
   bool invert_mask_ = false;
   bool adjust_with_luminance_ = false;
@@ -146,6 +145,9 @@ absl::Status BackgroundBlendCalculator::GetContract(CalculatorContract* cc) {
 #endif  // !MEDIAPIPE_DISABLE_GPU
   if (cc->Inputs().HasTag(kImageFrameTag)) {
     cc->Inputs().Tag(kImageFrameTag).Set<ImageFrame>();
+  }
+  if (cc->Inputs().HasTag(kBackgroundFrameTag)) {
+      cc->Inputs().Tag(kBackgroundFrameTag).Set<ImageFrame>();
   }
 
 #if !MEDIAPIPE_DISABLE_GPU
@@ -181,6 +183,7 @@ absl::Status BackgroundBlendCalculator::GetContract(CalculatorContract* cc) {
 #endif  // !MEDIAPIPE_DISABLE_GPU
   }
 
+  //cc->SetInputStreamHandler("ImmediateInputStreamHandler");
   return absl::OkStatus();
 }
 
@@ -196,13 +199,14 @@ absl::Status BackgroundBlendCalculator::Open(CalculatorContext* cc) {
 
   MP_RETURN_IF_ERROR(LoadOptions(cc));
 
+  /*
   mediapipe::StatusOr<std::string> status = ::mediapipe::PathToResourceAsFile("test.png");
   if (status.ok()) {
       background = cv::imread(status.value(), 1);
       cv::cvtColor(background, background, cv::COLOR_BGR2RGB);
       cv::resize(background, background, cv::Size(1280, 720));
   }
-
+  */
   return absl::OkStatus();
 }
 
@@ -243,11 +247,21 @@ absl::Status BackgroundBlendCalculator::RenderCpu(CalculatorContext* cc) {
         .AddPacket(cc->Inputs().Tag(kImageFrameTag).Value());
     return absl::OkStatus();
   }
+
+  if (cc->Inputs().Tag(kBackgroundFrameTag).IsEmpty()) {
+      cc->Outputs()
+          .Tag(kImageFrameTag)
+          .AddPacket(cc->Inputs().Tag(kImageFrameTag).Value());
+      return absl::OkStatus();
+  }
+
   // Get inputs and setup output.
   const auto& input_img = cc->Inputs().Tag(kImageFrameTag).Get<ImageFrame>();
+  const auto& background_img = cc->Inputs().Tag(kBackgroundFrameTag).Get<ImageFrame>();
   const auto& mask_img = cc->Inputs().Tag(kMaskCpuTag).Get<ImageFrame>();
 
   cv::Mat input_mat = formats::MatView(&input_img);
+  cv::Mat background_mat = formats::MatView(&background_img);
   cv::Mat mask_mat = formats::MatView(&mask_img);
 
   RET_CHECK(input_mat.channels() == 3);  // RGB only.
@@ -289,7 +303,7 @@ absl::Status BackgroundBlendCalculator::RenderCpu(CalculatorContext* cc) {
       for (int j = 0; j < output_mat.cols; ++j) {
         const float weight = mask_full.at<float>(i, j);
         output_mat.at<cv::Vec3b>(i, j) =
-            Blend(input_mat.at<cv::Vec3b>(i, j), background.at<cv::Vec3b>(i, j), weight, invert_mask,
+            Blend(input_mat.at<cv::Vec3b>(i, j), background_mat.at<cv::Vec3b>(i, j), weight, invert_mask,
                   adjust_with_luminance);
       }
     }
@@ -298,7 +312,7 @@ absl::Status BackgroundBlendCalculator::RenderCpu(CalculatorContext* cc) {
       for (int j = 0; j < output_mat.cols; ++j) {
         const float weight = mask_full.at<uchar>(i, j) * (1.0 / 255.0);
         output_mat.at<cv::Vec3b>(i, j) =
-            Blend(input_mat.at<cv::Vec3b>(i, j), background.at<cv::Vec3b>(i, j), weight, invert_mask,
+            Blend(input_mat.at<cv::Vec3b>(i, j), background_mat.at<cv::Vec3b>(i, j), weight, invert_mask,
                   adjust_with_luminance);
       }
     }

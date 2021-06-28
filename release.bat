@@ -13,6 +13,7 @@ rem rm -rf bazel-bin\mediapipe\examples\desktop\mpp_graph_main.lib
 
 rem ROBOCOPY bazel-bin\ c:\work\trtc\ide\window\Together.MSIX\ThirdParty\mppg\lib\Release *.lib /E > copy1
 ROBOCOPY bazel-out\x64_windows-opt\bin\ c:\work\trtc\ide\window\Together.MSIX\ThirdParty\mppg\lib\Release *.lib /S > copy2
+ROBOCOPY bazel-out\x64_windows-opt\bin\ c:\work\trtc\ide\window\Together.MSIX\ThirdParty\mppg\lib\Release *.pdb /S > copy2
 rem ROBOCOPY bazel-bin\ c:\work\trtc\ide\window\Together.MSIX\ThirdParty\mppg\lib\Release *.obj /E > copy3
 
 rm -rf MPPGraphDeps.params

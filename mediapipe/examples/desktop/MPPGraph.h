@@ -16,7 +16,7 @@ typedef struct MPPGInterpreter MPPGInterpreter;
 namespace cv { class Mat; }
 
 MPPG_CAPI_EXPORT MPPGInterpreter* MPPGInterpreterCreate(std::string &calculator_graph_config_contents, std::string &resource_root_dir);
-MPPG_CAPI_EXPORT bool MPPGInterpreterInvoke(MPPGInterpreter* interpreter, cv::Mat& camera_frame_raw, cv::Mat& output_frame_raw);
+MPPG_CAPI_EXPORT bool MPPGInterpreterInvoke(MPPGInterpreter* interpreter, cv::Mat& camera_frame_raw, cv::Mat& bg_frame_raw, cv::Mat& output_frame_raw);
 MPPG_CAPI_EXPORT void MPPGInterpreterDelete(MPPGInterpreter* interpreter);
 
 
