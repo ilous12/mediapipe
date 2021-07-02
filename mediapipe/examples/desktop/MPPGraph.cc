@@ -39,12 +39,7 @@ constexpr char kOutputStream[] = "output_video";
 constexpr char kWindowName[] = "MediaPipe";
 
 ABSL_DECLARE_FLAG(std::string, resource_root_dir);
-/*
-ABSL_FLAG(
-    std::string, resource_root_dir, "",
-    "The absolute path to the resource directory."
-    "If specified, resource_root_dir will be prepended to the original path.");
-*/
+
 struct MPPGInterpreter {
     std::string calculator_graph_config_contents;
     mediapipe::CalculatorGraphConfig config;
@@ -87,26 +82,16 @@ MPPGInterpreter* MPPGInterpreterCreate(std::string &calculator_graph_config_cont
     return interpreter;
 }
 
-bool MPPGInterpreterInvoke(MPPGInterpreter* interpreter, cv::Mat& camera_frame, cv::Mat& bg_frame, cv::Mat& output_frame_raw) {
-    //cv::Mat camera_frame = camera_frame_raw;
-    //cv::cvtColor(camera_frame_raw, camera_frame, cv::COLOR_BGR2RGB);
+bool MPPGInterpreterInvoke(MPPGInterpreter* interpreter, cv::Mat& camera_frame_raw, cv::Mat& bg_frame, cv::Mat& output_frame_raw) {
+    cv::Mat camera_frame;
+    cv::cvtColor(camera_frame_raw, camera_frame, cv::COLOR_BGRA2RGB);
 
     // Wrap Mat into an ImageFrame.
     auto input_frame = absl::make_unique<mediapipe::ImageFrame>(
         mediapipe::ImageFormat::SRGB, camera_frame.cols, camera_frame.rows,
         mediapipe::ImageFrame::kDefaultAlignmentBoundary);
-    cv::Mat input_frame_mat = mediapipe::formats::MatView(input_frame.get());
-    camera_frame.copyTo(input_frame_mat);
-
-    // Send image packet into the graph.
-    size_t frame_timestamp_us =
-        (double)cv::getTickCount() / (double)cv::getTickFrequency() * 1e6;
-    interpreter->graph.AddPacketToInputStream(
-        kInputStream, mediapipe::Adopt(input_frame.release())
-                          .At(mediapipe::Timestamp(frame_timestamp_us)));
-
-    //cv::Mat bg_frame = bg_frame_raw;
-    //cv::cvtColor(bg_frame_raw, bg_frame, cv::COLOR_BGR2RGB);
+    cv::Mat camera_frame_mat = mediapipe::formats::MatView(input_frame.get());
+    camera_frame.copyTo(camera_frame_mat);
 
     // Wrap Mat into an ImageFrame.
     auto input_bg_frame = absl::make_unique<mediapipe::ImageFrame>(
@@ -114,6 +99,14 @@ bool MPPGInterpreterInvoke(MPPGInterpreter* interpreter, cv::Mat& camera_frame, 
         mediapipe::ImageFrame::kDefaultAlignmentBoundary);
     cv::Mat input_bg_frame_mat = mediapipe::formats::MatView(input_bg_frame.get());
     bg_frame.copyTo(input_bg_frame_mat);
+
+    // Send image packet into the graph.
+    size_t frame_timestamp_us =
+        (double)cv::getTickCount() / (double)cv::getTickFrequency() * 1e6;
+
+    interpreter->graph.AddPacketToInputStream(
+        kInputStream, mediapipe::Adopt(input_frame.release())
+                          .At(mediapipe::Timestamp(frame_timestamp_us)));
 
     // Send image packet into the graph.
     interpreter->graph.AddPacketToInputStream(
