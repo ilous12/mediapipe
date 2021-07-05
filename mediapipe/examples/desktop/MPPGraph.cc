@@ -50,7 +50,7 @@ struct MPPGInterpreter {
 
 MPPGInterpreter* MPPGInterpreterCreate(std::string &calculator_graph_config_contents, std::string &resource_root_dir) {
       google::InitGoogleLogging("MMPG");
-#if 1
+#if 0
       FLAGS_stderrthreshold = 0;
       FLAGS_minloglevel = 0;
       FLAGS_v = 4;

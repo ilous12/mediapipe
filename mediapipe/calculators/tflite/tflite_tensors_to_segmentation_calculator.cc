@@ -365,8 +365,8 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
   LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "]";
   if (tensor_mat.channels() == 1) {
       LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "] tensor_mat.channels() == 1";
-      float sigma_color = 0.5;
-      float sigma_space = 0.5;
+      float sigma_color = 3;
+      float sigma_space = 1;
       cv::Mat bilateral_mat;
       cv::bilateralFilter(tensor_mat, bilateral_mat, /*d=*/sigma_space,
           sigma_color, sigma_space);

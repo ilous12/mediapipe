@@ -45,6 +45,17 @@ constexpr char kMaskGpuTag[] = "MASK_GPU";
 inline cv::Vec3b Blend(const cv::Vec3b& color1, const cv::Vec3b& color2,
                        float weight, int invert_mask,
                        int adjust_with_luminance) {
+  float min_range = 0.3;
+  float max_range = 0.9;
+  if (weight <= min_range) {
+      weight = 0;
+  }
+  else if (weight >= max_range) {
+      weight = 1;
+  }
+  else {
+      weight = (weight - min_range) / (max_range - min_range);
+  }
   weight = (1 - invert_mask) * weight + invert_mask * (1.0f - weight);
 
   float luminance =
@@ -275,8 +286,8 @@ absl::Status BackgroundBlendCalculator::RenderCpu(CalculatorContext* cc) {
       mask_mat = channels[0];
   }
   cv::Mat mask_full;
-  //cv::GaussianBlur(mask_mat, mask_full, cv::Size(5, 5), 50.0);
   cv::resize(mask_mat, mask_full, input_mat.size());
+  //cv::GaussianBlur(mask_full, mask_full, cv::Size(3, 3), 3.0);
 
   const cv::Vec3b recolor = {color_[0], color_[1], color_[2]};
 
