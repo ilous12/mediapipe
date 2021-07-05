@@ -134,9 +134,6 @@ class TfLiteTensorsToSegmentationCalculator : public CalculatorBase {
   absl::Status ProcessCpu(CalculatorContext* cc);
   void GlRender();
 
-  template <class T>
-  absl::Status ApplyActivation(cv::Mat& tensor_mat, cv::Mat* small_mask_mat);
-
   ::mediapipe::TfLiteTensorsToSegmentationCalculatorOptions options_;
 
   int tensor_width_ = 0;
@@ -264,54 +261,6 @@ absl::Status TfLiteTensorsToSegmentationCalculator::Close(
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
   return absl::OkStatus();
-}
-
-template <class T>
-absl::Status TfLiteTensorsToSegmentationCalculator::ApplyActivation(
-    cv::Mat& tensor_mat, cv::Mat* small_mask_mat) {
-    // Configure activation function.
-    const int output_layer_index = options_.output_layer_index();
-    typedef mediapipe::TensorsToSegmentationCalculatorOptions Options;
-    const auto activation_fn = [&](const cv::Vec2f& mask_value) {
-        float new_mask_value = 0;
-        // TODO consider moving switch out of the loop,
-        // and also avoid float/Vec2f casting.
-        switch (options_.activation()) {
-        case Options::NONE: {
-            new_mask_value = mask_value[0];
-            break;
-        }
-        case Options::SIGMOID: {
-            const float pixel0 = mask_value[0];
-            new_mask_value = 1.0 / (std::exp(-pixel0) + 1.0);
-            break;
-        }
-        case Options::SOFTMAX: {
-            const float pixel0 = mask_value[0];
-            const float pixel1 = mask_value[1];
-            const float max_pixel = std::max(pixel0, pixel1);
-            const float min_pixel = std::min(pixel0, pixel1);
-            const float softmax_denom =
-                /*exp(max_pixel - max_pixel)=*/1.0f +
-                std::exp(min_pixel - max_pixel);
-            new_mask_value = std::exp(mask_value[output_layer_index] - max_pixel) /
-                softmax_denom;
-            break;
-        }
-        }
-        return new_mask_value;
-    };
-
-    // Process mask tensor.
-    for (int i = 0; i < tensor_mat.rows; ++i) {
-        for (int j = 0; j < tensor_mat.cols; ++j) {
-            const T& input_pix = tensor_mat.at<T>(i, j);
-            const float mask_value = activation_fn(input_pix);
-            small_mask_mat->at<float>(i, j) = mask_value;
-        }
-    }
-
-    return absl::OkStatus();
 }
 
 absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
