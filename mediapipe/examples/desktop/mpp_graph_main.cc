@@ -17,6 +17,11 @@
 #include <fstream>
 #include <string>
 #include <iostream>
+#include <sstream>
+
+using std::cout; using std::cerr;
+using std::endl; using std::string;
+using std::ifstream; using std::ostringstream;
 
 /*
 #include "absl/flags/flag.h"
@@ -33,10 +38,26 @@
 */
 #include "MPPGraph.h"
 
+std::string readFileIntoString(const std::string& path) {
+    ifstream input_file(path);
+    if (!input_file.is_open()) {
+        cerr << "Could not open the file - '"
+            << path << "'" << endl;
+        exit(EXIT_FAILURE);
+    }
+    return string((std::istreambuf_iterator<char>(input_file)), std::istreambuf_iterator<char>());
+}
+
 void RunMPPGraph() {
+#if 0
   std::string path_to_graph("C:\\\\work\\\\mediapipe\\\\mediapipe\\\\graphs\\\\selfie_segmentation\\\\selfie_segmentation_cpu.pbtxt");
   std::string resource_root_dir("C:\\work\\test\\TestConsole\\x64\\Release");
-  MPPGInterpreter *interpreter = MPPGInterpreterCreate(path_to_graph, resource_root_dir);
+#else
+  std::string path_to_graph("/Users/SKTelecom/Downloads/mpgg_segmentation_cpu.pbtxt");
+  std::string contents = readFileIntoString(path_to_graph);
+  std::string resource_root_dir("/Users/SKTelecom/Work/Github/mediapipe_ilous12/mediapipe/modules/selfie_segmentation");
+#endif
+  MPPGInterpreter *interpreter = MPPGInterpreterCreate(contents, resource_root_dir);
   int i = 100;
   while(i--) {
   }

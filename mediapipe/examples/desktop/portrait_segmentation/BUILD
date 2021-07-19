@@ -22,3 +22,11 @@ cc_binary(
         "//mediapipe/examples/desktop:mpp_graph_main",
     ],
 )
+
+cc_binary(
+    name = "libmpp_graph.dylib",
+    linkshared = 1,
+    deps = [
+        "//mediapipe/examples/desktop:mpp_graph",
+    ],
+)
