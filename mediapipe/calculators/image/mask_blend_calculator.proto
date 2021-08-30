@@ -19,9 +19,9 @@ package mediapipe;
 import "mediapipe/framework/calculator.proto";
 import "mediapipe/util/color.proto";
 
-message BackgroundBlendCalculatorOptions {
+message MaskBlendCalculatorOptions {
   extend CalculatorOptions {
-    optional BackgroundBlendCalculatorOptions ext = 252527119;
+    optional MaskBlendCalculatorOptions ext = 252527120;
   }
 
   enum MaskChannel {

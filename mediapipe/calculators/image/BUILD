@@ -91,6 +91,17 @@ mediapipe_proto_library(
     ],
 )
 
+mediapipe_proto_library(
+    name = "mask_blend_calculator_proto",
+    srcs = ["mask_blend_calculator.proto"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//mediapipe/framework:calculator_options_proto",
+        "//mediapipe/framework:calculator_proto",
+        "//mediapipe/util:color_proto",
+    ],
+)
+
 cc_library(
     name = "color_convert_calculator",
     srcs = ["color_convert_calculator.cc"],
@@ -378,6 +389,35 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":background_blend_calculator_cc_proto",
+        "//mediapipe/framework:calculator_framework",
+        "//mediapipe/framework/formats:image_frame",
+        "//mediapipe/framework/formats:image_frame_opencv",
+        "//mediapipe/framework/port:status",
+        "//mediapipe/framework/port:ret_check",
+	"//mediapipe/util:resource_util",
+        "//mediapipe/util:color_cc_proto",
+        "//mediapipe/framework/port:opencv_core",
+	"//mediapipe/framework/port:opencv_video",
+        "//mediapipe/framework/port:opencv_imgproc",
+        "//mediapipe/framework/port:opencv_highgui",
+    ] + select({
+        "//mediapipe/gpu:disable_gpu": [],
+        "//conditions:default": [
+            "//mediapipe/gpu:gl_calculator_helper",
+            "//mediapipe/gpu:gl_simple_shaders",
+            "//mediapipe/gpu:gl_quad_renderer",
+            "//mediapipe/gpu:shader_util",
+        ],
+    }),
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "mask_blend_calculator",
+    srcs = ["mask_blend_calculator.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":mask_blend_calculator_cc_proto",
         "//mediapipe/framework:calculator_framework",
         "//mediapipe/framework/formats:image_frame",
         "//mediapipe/framework/formats:image_frame_opencv",

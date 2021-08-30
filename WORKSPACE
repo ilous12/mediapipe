@@ -207,7 +207,7 @@ new_local_repository(
 new_local_repository(
     name = "macos_opencv",
     build_file = "@//third_party:opencv_macos.BUILD",
-    path = "/usr/local/opt/opencv@3",
+    path = "/Users/SKTelecom/Work/Gitlab/TRTC_MAC/product/meetus/macos/MeetUs/Libraries/OpenCV",
 )
 
 new_local_repository(
