@@ -1,0 +1,129 @@
+input_stream: "input_video"
+output_stream: "output_video"
+
+node {
+  calculator: "FlowLimiterCalculator"
+  input_stream: "input_video"
+  input_stream: "FINISHED:portrait_mask"
+  input_stream_info: {
+    tag_index: "FINISHED"
+    back_edge: true
+  }
+  output_stream: "throttled_input_video"
+}
+
+node: {
+  calculator: "ImageTransformationCalculator"
+  input_stream: "IMAGE_GPU:throttled_input_video"
+  output_stream: "IMAGE_GPU:transformed_input_video"
+  node_options: {
+    [type.googleapis.com/mediapipe.ImageTransformationCalculatorOptions] {
+      output_width: 256
+      output_height: 256
+    }
+  }
+}
+
+node {
+  calculator: "PreviousLoopbackCalculator"
+  input_stream: "MAIN:throttled_input_video"
+  input_stream: "LOOP:portrait_mask"
+  input_stream_info: {
+    tag_index: "LOOP"
+    back_edge: true
+  }
+  output_stream: "PREV_LOOP:previous_portrait_mask"
+}
+
+node {
+  calculator: "SetAlphaCalculator"
+  input_stream: "IMAGE_GPU:transformed_input_video"
+  input_stream: "ALPHA_GPU:previous_portrait_mask"
+  output_stream: "IMAGE_GPU:mask_embedded_input_video"
+}
+
+node {
+  calculator: "TfLiteConverterCalculator"
+  input_stream: "IMAGE_GPU:mask_embedded_input_video"
+  output_stream: "TENSORS_GPU:image_tensor"
+  node_options: {
+    [type.googleapis.com/mediapipe.TfLiteConverterCalculatorOptions] {
+      zero_center: false
+      max_num_channels: 3
+      output_tensor_float_range {
+        min: 0.0
+         max: 1.0
+      }
+    }
+  }
+}
+
+node {
+  calculator: "TfLiteCustomOpResolverCalculator"
+  output_side_packet: "op_resolver"
+  node_options: {
+    [type.googleapis.com/mediapipe.TfLiteCustomOpResolverCalculatorOptions] {
+      use_gpu: true
+    }
+  }
+}
+
+node {
+  calculator: "TfLiteInferenceCalculator"
+  input_stream: "TENSORS_GPU:image_tensor"
+  output_stream: "TENSORS:segmentation_tensor"
+  input_side_packet: "CUSTOM_OP_RESOLVER:op_resolver"
+  node_options: {
+    [type.googleapis.com/mediapipe.TfLiteInferenceCalculatorOptions] {
+      model_path: "portrait_segmentation.tflite"    
+      use_gpu: true
+    }
+  }
+}
+
+node: {
+  calculator: "GpuBufferToImageFrameCalculator"
+  input_stream: "previous_portrait_mask"
+  output_stream: "previous_portrait_mask_cpu"
+}
+
+node {
+  calculator: "TfLiteTensorsToSegmentationCalculator"
+  input_stream: "TENSORS:segmentation_tensor"
+  input_stream: "PREV_MASK:previous_portrait_mask_cpu"
+  output_stream: "MASK:portrait_mask_cpu"
+  node_options: {
+    [type.googleapis.com/mediapipe.TfLiteTensorsToSegmentationCalculatorOptions] {
+      tensor_width: 256
+      tensor_height: 256
+      tensor_channels: 1
+      combine_with_previous_ratio: 0.8
+      output_layer_index: 0
+    }
+  }
+}
+
+node: {
+  calculator: "ImageFrameToGpuBufferCalculator"
+  input_stream: "portrait_mask_cpu"
+  output_stream: "portrait_mask"
+}
+
+node {
+  calculator: "MaskBlendCalculator"
+  input_stream: "IMAGE_GPU:throttled_input_video"
+  input_stream: "MASK_GPU:portrait_mask"
+  output_stream: "IMAGE_GPU:output_video_gpu"
+  node_options: {
+    [type.googleapis.com/mediapipe.MaskBlendCalculatorOptions] {  
+      color { r: 255 g: 255 b: 255 }
+      mask_channel: RED
+    }
+  }
+}
+
+node: {
+  calculator: "GpuBufferToImageFrameCalculator"
+  input_stream: "output_video_gpu"
+  output_stream: "output_video"
+}

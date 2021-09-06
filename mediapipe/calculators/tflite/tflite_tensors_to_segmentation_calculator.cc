@@ -303,7 +303,7 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
     cv::resize(temp_mask_mat, input_mask_mat, small_mask_mat.size());
   }
 
-  LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "] tensor_channels_ " << tensor_channels_;
+  //LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "] tensor_channels_ " << tensor_channels_;
 
   // Copy input tensor.
   const TfLiteTensor* raw_input_tensor = &input_tensors[0];
@@ -311,9 +311,9 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
   cv::Mat tensor_mat(cv::Size(tensor_width_, tensor_height_),
                      CV_MAKETYPE(CV_32F, tensor_channels_), const_cast<float*>(raw_input_data));
 
-  LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "]";
+  //LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "]";
   if (tensor_mat.channels() == 1) {
-      LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "] tensor_mat.channels() == 1";
+    //LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "] tensor_mat.channels() == 1";
       float sigma_color = 3;
       float sigma_space = 1;
       cv::Mat bilateral_mat;
@@ -391,7 +391,7 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
     }
   }
 
-  LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "] range min " << min_range << ", max " << max_range;
+  //  LOG(INFO) << "[" << __func__ << ":" << __LINE__ << "] range min " << min_range << ", max " << max_range;
 
   if (options_.flip_vertically()) cv::flip(small_mask_mat, small_mask_mat, 0);
 
@@ -400,7 +400,10 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
   cv::resize(small_mask_mat, large_mask_mat,
              cv::Size(output_width, output_height));
 
+#if defined(__ANDROID__)
+#else
   cv::GaussianBlur(large_mask_mat, large_mask_mat, cv::Size(1, 1), 20);
+#endif
 
   // Send out image as CPU packet.
   std::unique_ptr<ImageFrame> output_mask = absl::make_unique<ImageFrame>(

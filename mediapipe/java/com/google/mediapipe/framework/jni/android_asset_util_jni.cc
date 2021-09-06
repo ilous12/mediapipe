@@ -25,6 +25,12 @@ JNIEXPORT jboolean JNICALL ANDROID_ASSET_UTIL_METHOD(
     nativeInitializeAssetManager)(JNIEnv* env, jclass clz,
                                   jobject android_context,
                                   jstring cache_dir_path) {
+#if 0
+      FLAGS_stderrthreshold = 0;
+      FLAGS_minloglevel = 0;
+      FLAGS_v = 4;
+#endif
+  
   mediapipe::AssetManager* asset_manager =
       Singleton<mediapipe::AssetManager>::get();
   return asset_manager->InitializeFromActivity(

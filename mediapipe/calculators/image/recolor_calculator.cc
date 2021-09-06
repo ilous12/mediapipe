@@ -249,9 +249,7 @@ absl::Status RecolorCalculator::RenderCpu(CalculatorContext* cc) {
       mask_mat = channels[0];
   }
   cv::Mat mask_full;
-  //cv::GaussianBlur(mask_mat, mask_full, cv::Size(5, 5), 50.0);
   cv::resize(mask_mat, mask_full, input_mat.size());
-
   const cv::Vec3b recolor = {color_[0], color_[1], color_[2]};
 
   auto output_img = absl::make_unique<ImageFrame>(

@@ -59,3 +59,10 @@ mediapipe_binary_graph(
     output_name = "mobile_gpu.binarypb",
     deps = [":mobile_calculators"],
 )
+
+mediapipe_binary_graph(
+    name = "mobile_gpu_binary_graph_aos",
+    graph = "portrait_segmentation_mobile_gpu_aos.pbtxt",
+    output_name = "mobile_gpu_aos.binarypb",
+    deps = [":mobile_calculators"],
+)

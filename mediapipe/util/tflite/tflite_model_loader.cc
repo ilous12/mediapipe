@@ -38,6 +38,8 @@ absl::StatusOr<api2::Packet<TfLiteModelPtr>> TfLiteModelLoader::LoadFromPath(
         mediapipe::GetResourceContents(resolved_path, &model_blob));
   }
 
+  LOG(WARNING) << "tflite model " << model_path;
+  
   auto model = tflite::FlatBufferModel::VerifyAndBuildFromBuffer(
       model_blob.data(), model_blob.size());
   RET_CHECK(model) << "Failed to load model from path " << model_path;
