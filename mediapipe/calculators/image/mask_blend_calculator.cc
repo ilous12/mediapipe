@@ -37,6 +37,7 @@ constexpr char kImageFrameTag[] = "IMAGE";
 constexpr char kMaskCpuTag[] = "MASK";
 constexpr char kGpuBufferTag[] = "IMAGE_GPU";
 constexpr char kMaskGpuTag[] = "MASK_GPU";
+constexpr char kGpuBuffer2Tag[] = "IMAGE_GPU2";  
 
 inline cv::Vec3b Blend(const cv::Vec3b& color1, const cv::Vec3b& color2,
                        float weight, int invert_mask,
@@ -158,6 +159,11 @@ absl::Status MaskBlendCalculator::GetContract(CalculatorContract* cc) {
     cc->Outputs().Tag(kGpuBufferTag).Set<mediapipe::GpuBuffer>();
     use_gpu |= true;
   }
+  if (cc->Outputs().HasTag(kGpuBuffer2Tag)) {
+    cc->Outputs().Tag(kGpuBuffer2Tag).Set<mediapipe::GpuBuffer>();
+    use_gpu |= true;
+  }
+  
 #endif  // !MEDIAPIPE_DISABLE_GPU
   if (cc->Outputs().HasTag(kImageFrameTag)) {
     cc->Outputs().Tag(kImageFrameTag).Set<ImageFrame>();
@@ -304,47 +310,70 @@ absl::Status MaskBlendCalculator::RenderGpu(CalculatorContext* cc) {
     cc->Outputs()
         .Tag(kGpuBufferTag)
         .AddPacket(cc->Inputs().Tag(kGpuBufferTag).Value());
+    cc->Outputs()
+        .Tag(kGpuBuffer2Tag)
+        .AddPacket(cc->Inputs().Tag(kGpuBuffer2Tag).Value());
+    
     return absl::OkStatus();
   }
 #if !MEDIAPIPE_DISABLE_GPU
-  // Get inputs and setup output.
-  const Packet& input_packet = cc->Inputs().Tag(kGpuBufferTag).Value();
-  const Packet& mask_packet = cc->Inputs().Tag(kMaskGpuTag).Value();
-
-  const auto& input_buffer = input_packet.Get<mediapipe::GpuBuffer>();
-  const auto& mask_buffer = mask_packet.Get<mediapipe::GpuBuffer>();
-
-  auto img_tex = gpu_helper_.CreateSourceTexture(input_buffer);
-  auto mask_tex = gpu_helper_.CreateSourceTexture(mask_buffer);
-  auto dst_tex =
-      gpu_helper_.CreateDestinationTexture(img_tex.width(), img_tex.height());
-
-  // Run recolor shader on GPU.
   {
-    gpu_helper_.BindFramebuffer(dst_tex);
+    // Get inputs and setup output.
+    const Packet& input_packet = cc->Inputs().Tag(kGpuBufferTag).Value();
+    const Packet& mask_packet = cc->Inputs().Tag(kMaskGpuTag).Value();
 
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(img_tex.target(), img_tex.name());
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(mask_tex.target(), mask_tex.name());
+    const auto& input_buffer = input_packet.Get<mediapipe::GpuBuffer>();
+    const auto& mask_buffer = mask_packet.Get<mediapipe::GpuBuffer>();
 
-    GlRender();
+    auto img_tex = gpu_helper_.CreateSourceTexture(input_buffer);
+    auto mask_tex = gpu_helper_.CreateSourceTexture(mask_buffer);
+    auto dst_tex = gpu_helper_.CreateDestinationTexture(256, 256);
 
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glFlush();
+    // Run recolor shader on GPU.
+    {
+      gpu_helper_.BindFramebuffer(dst_tex);
+
+      glActiveTexture(GL_TEXTURE1);
+      glBindTexture(img_tex.target(), img_tex.name());
+      glActiveTexture(GL_TEXTURE2);
+      glBindTexture(mask_tex.target(), mask_tex.name());
+
+      GlRender();
+
+      glActiveTexture(GL_TEXTURE2);
+      glBindTexture(GL_TEXTURE_2D, 0);
+      glActiveTexture(GL_TEXTURE1);
+      glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    // Send result image in GPU packet.
+    auto output = dst_tex.GetFrame<mediapipe::GpuBuffer>();
+    cc->Outputs().Tag(kGpuBufferTag).Add(output.release(), cc->InputTimestamp());
+
+    // Cleanup
+    img_tex.Release();
+    mask_tex.Release();
+    dst_tex.Release();
   }
 
-  // Send result image in GPU packet.
-  auto output = dst_tex.GetFrame<mediapipe::GpuBuffer>();
-  cc->Outputs().Tag(kGpuBufferTag).Add(output.release(), cc->InputTimestamp());
+  {
+    // Get inputs and setup output.
+    const Packet& input_packet = cc->Inputs().Tag(kGpuBufferTag).Value();
 
-  // Cleanup
-  img_tex.Release();
-  mask_tex.Release();
-  dst_tex.Release();
+    const auto& input_buffer = input_packet.Get<mediapipe::GpuBuffer>();
+
+    auto img_tex = gpu_helper_.CreateSourceTexture(input_buffer);
+
+    glFlush();
+
+    // Send result image in GPU packet.
+    auto output = img_tex.GetFrame<mediapipe::GpuBuffer>();
+    cc->Outputs().Tag(kGpuBuffer2Tag).Add(output.release(), cc->InputTimestamp());
+
+    // Cleanup
+    img_tex.Release();
+  }
+
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
   return absl::OkStatus();

@@ -1,5 +1,6 @@
 input_stream: "input_video"
 output_stream: "output_video"
+output_stream: "output_mask"
 
 node {
   calculator: "FlowLimiterCalculator"
@@ -113,7 +114,8 @@ node {
   calculator: "MaskBlendCalculator"
   input_stream: "IMAGE_GPU:throttled_input_video"
   input_stream: "MASK_GPU:portrait_mask"
-  output_stream: "IMAGE_GPU:output_video"
+  output_stream: "IMAGE_GPU:output_mask"
+  output_stream: "IMAGE_GPU2:output_video"  
   node_options: {
     [type.googleapis.com/mediapipe.MaskBlendCalculatorOptions] {
       color { r: 255 g: 255 b: 255 }

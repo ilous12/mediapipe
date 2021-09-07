@@ -5,15 +5,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 @protocol MPPGResult <NSObject>
 
-- (void) onResult:(nonnull CVPixelBufferRef)pixelBuffer;
+- (void) onResult:(nonnull NSString *)outputName pixelBuffer:(nonnull CVPixelBufferRef)pixelBuffer;
 
 @end
 
 @interface MPPG : NSObject
 
 - (id) initWithResult:(id<MPPGResult>)result;
-- (BOOL)send:(nonnull CVPixelBufferRef)inputPixelBuffer
-      output:(nonnull CVPixelBufferRef)outputPixelBuffer;
+- (BOOL)send:(nonnull CVPixelBufferRef)inputPixelBuffer;
 
 @end
 

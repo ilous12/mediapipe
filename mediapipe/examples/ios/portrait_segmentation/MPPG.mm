@@ -5,7 +5,8 @@
 
 NSString *const kBinaryPbName = @"mobile_gpu";
 NSString *const kInputStream = @"input_video";
-NSString *const kOutputStream = @"output_video";
+NSString *const kOutputVideoStream = @"output_video";
+NSString *const kOutputMaskStream = @"output_mask";
 
 @interface MPPG() <MPPGraphDelegate>
 
@@ -19,18 +20,22 @@ NSString *const kOutputStream = @"output_video";
 
 - (id) initWithResult:(id<MPPGResult>)result {
     google::InitGoogleLogging("MMPG");
-#if 0
-    FLAGS_stderrthreshold = 0;
-    FLAGS_minloglevel = 0;
-    FLAGS_v = 4;
+#if 1
+    FLAGS_stderrthreshold = 3;
+    FLAGS_minloglevel = 3;
+    FLAGS_v = 3;
 #endif
+    LOG(INFO) << "buildDate: "<< __DATE__ << " " __TIME__;
+    
     _result = result;
 
     if (self = [super init]) {
         _timestampConverter = [[MPPTimestampConverter alloc] init];
         
         self.mediapipeGraph = [[self class] loadGraphFromResource:kBinaryPbName];
-        [self.mediapipeGraph addFrameOutputStream:[kOutputStream UTF8String]
+        [self.mediapipeGraph addFrameOutputStream:[kOutputVideoStream UTF8String]
+                                 outputPacketType:MPPPacketTypePixelBuffer];
+        [self.mediapipeGraph addFrameOutputStream:[kOutputMaskStream UTF8String]
                                  outputPacketType:MPPPacketTypePixelBuffer];
         self.mediapipeGraph.delegate = self;
         NSError* error;
@@ -55,8 +60,7 @@ NSString *const kOutputStream = @"output_video";
     _result = nil;
 }
 
-- (BOOL)send:(CVPixelBufferRef)inputPixelBuffer
-      output:(CVPixelBufferRef)outputPixelBuffer {
+- (BOOL)send:(CVPixelBufferRef)inputPixelBuffer {
     if (!_mediapipeGraph) {
         return false;
     }
@@ -69,7 +73,8 @@ NSString *const kOutputStream = @"output_video";
     didOutputPixelBuffer:(CVPixelBufferRef)pixelBuffer
               fromStream:(const std::string&)streamName {
     if (_result) {
-        [_result onResult:pixelBuffer];
+	NSString* outputName = [NSString stringWithUTF8String:streamName.c_str()];
+        [_result onResult:outputName pixelBuffer:pixelBuffer];
     }
 }
 
@@ -90,7 +95,6 @@ NSString *const kOutputStream = @"output_video";
     config.ParseFromArray(data.bytes, data.length);
     
     MPPGraph* newGraph = [[MPPGraph alloc] initWithGraphConfig:config];
-    NSLog(@"%s:%d]", __PRETTY_FUNCTION__, __LINE__);
     return newGraph;
 }
 

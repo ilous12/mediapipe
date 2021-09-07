@@ -400,7 +400,7 @@ absl::Status TfLiteTensorsToSegmentationCalculator::ProcessCpu(
   cv::resize(small_mask_mat, large_mask_mat,
              cv::Size(output_width, output_height));
 
-#if defined(__ANDROID__)
+#if defined(MEDIAPIPE_ANDROID) || defined(MEDIAPIPE_IOS)
 #else
   cv::GaussianBlur(large_mask_mat, large_mask_mat, cv::Size(1, 1), 20);
 #endif
